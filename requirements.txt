@@ -1,0 +1,3 @@
+Flask
+ofxparse
+psycopg2-binary
