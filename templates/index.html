@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Importador de Extrato Bancário</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="container">
+        <header class="topo">
+            <div class="icone">R$</div>
+            <div>
+                <p class="sobretitulo">CONTROLE FINANCEIRO</p>
+                <h1>Importar extrato bancário</h1>
+                <p class="subtitulo">Envie um arquivo OFX, confira as movimentações e escolha a classificação de cada uma.</p>
+            </div>
+        </header>
+
+        <section class="painel">
+            <h2>Selecionar arquivo</h2>
+            <form method="post" enctype="multipart/form-data" id="formulario">
+                <input type="hidden" name="acao" value="importar">
+                <label class="dropzone" for="arquivo">
+                    <span class="upload-icon">↑</span>
+                    <strong id="nome-arquivo">Escolha seu arquivo OFX</strong>
+                    <span>Selecione um arquivo .ofx do seu computador</span>
+                    <input type="file" id="arquivo" name="arquivo" accept=".ofx" required>
+                </label>
+                <button type="submit" id="botao">Analisar extrato</button>
+                <p class="aviso">A importação apenas apresenta os dados. Você escolhe as classificações antes de salvar no banco.</p>
+            </form>
+        </section>
+
+        {% if erro %}
+        <section class="mensagem erro">
+            <strong>Não foi possível concluir a operação</strong>
+            <p>{{ erro }}</p>
+        </section>
+        {% endif %}
+
+        {% if sucesso %}
+        <section class="mensagem sucesso"><strong>{{ sucesso }}</strong></section>
+        {% endif %}
+
+        {% if resultado %}
+        <section class="mensagem informacao">
+            <strong>Extrato analisado: {{ resultado.nome_arquivo }}</strong>
+            <p>Confira as movimentações e selecione uma classificação para cada linha. Os dados só serão gravados quando você clicar no botão ao final da tabela.</p>
+        </section>
+
+        <section class="resumo">
+            <article class="cartao"><span>Movimentações</span><strong>{{ resultado.quantidade }}</strong></article>
+            <article class="cartao"><span>Total de entradas</span><strong class="positivo">{{ resultado.entradas }}</strong></article>
+            <article class="cartao"><span>Total de saídas</span><strong class="negativo">{{ resultado.saidas }}</strong></article>
+            <article class="cartao"><span>Saldo calculado</span><strong>{{ resultado.saldo }}</strong></article>
+        </section>
+
+        <section class="painel tabela-painel">
+            <div class="titulo-tabela">
+                <div><h2>Classificar movimentações</h2><p>Escolha uma opção no menu de cada registro.</p></div>
+                <span class="contador">{{ resultado.quantidade }} registros</span>
+            </div>
+            <form method="post" id="form-classificacoes">
+                <input type="hidden" name="acao" value="salvar">
+                <input type="hidden" name="quantidade" value="{{ resultado.quantidade }}">
+                <div class="tabela-scroll">
+                    <table>
+                        <thead><tr><th>Data</th><th>Descrição</th><th>Classificação</th><th class="direita">Valor</th></tr></thead>
+                        <tbody>
+                        {% for mov in resultado.movimentacoes %}
+                            <tr>
+                                <td>{{ mov.data }}</td>
+                                <td class="descricao">{{ mov.descricao }}</td>
+                                <td>
+                                    <input type="hidden" name="data_{{ loop.index0 }}" value="{{ mov.data_banco.isoformat() }}">
+                                    <input type="hidden" name="valor_{{ loop.index0 }}" value="{{ mov.valor }}">
+                                    <input type="hidden" name="descricao_{{ loop.index0 }}" value="{{ mov.descricao }}">
+                                    <select class="seletor-classificacao" name="classificacao_{{ loop.index0 }}" required>
+                                        <option value="" disabled selected>Escolha uma opção</option>
+                                        {% for categoria in classificacoes %}
+                                        <option value="{{ categoria }}">{{ categoria }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td class="direita {% if mov.valor > 0 %}positivo{% elif mov.valor < 0 %}negativo{% endif %}">{{ mov.valor_formatado }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <button type="submit" id="botao-salvar">Salvar classificações no banco</button>
+                <p class="aviso">É necessário selecionar uma classificação para todas as movimentações.</p>
+            </form>
+        </section>
+        {% endif %}
+
+        <footer>Importador de Extrato · Python + Flask + PostgreSQL</footer>
+    </main>
+
+    <script>
+        const campoArquivo = document.getElementById("arquivo");
+        const nomeArquivo = document.getElementById("nome-arquivo");
+        const formulario = document.getElementById("formulario");
+        const botao = document.getElementById("botao");
+        if (campoArquivo) {
+            campoArquivo.addEventListener("change", () => {
+                nomeArquivo.textContent = campoArquivo.files.length ? campoArquivo.files[0].name : "Escolha seu arquivo OFX";
+            });
+        }
+        if (formulario && botao) {
+            formulario.addEventListener("submit", () => {
+                botao.disabled = true;
+                botao.textContent = "Analisando extrato...";
+            });
+        }
+        const formularioClassificacoes = document.getElementById("form-classificacoes");
+        const botaoSalvar = document.getElementById("botao-salvar");
+        if (formularioClassificacoes && botaoSalvar) {
+            formularioClassificacoes.addEventListener("submit", () => {
+                botaoSalvar.disabled = true;
+                botaoSalvar.textContent = "Salvando classificações...";
+            });
+        }
+    </script>
+</body>
+</html>
